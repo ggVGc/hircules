@@ -1,8 +1,9 @@
 module Lib
     ( Bot (..),
       Net,
-      lookupURLTitles,
+      commands,
       hasURLs,
+      lookupURLTitles,
       privmsg,
       uptime,
       write
@@ -16,6 +17,7 @@ import Data.List
 import Data.List.Split
 import Data.Maybe
 import Network
+import System.Exit
 import System.IO
 import System.Time
 import Text.HTML.Scalpel
@@ -24,10 +26,50 @@ import Text.Printf
 data Bot = Bot { socket :: Handle, channell :: String, starttime :: ClockTime }
 type Net = ReaderT Bot IO
 
-privmsg :: String -> Net ()
-privmsg s = do
-  chan<- asks channell
-  write "PRIVMSG" (chan++ " :" ++ s)
+commands =
+  [  -- ("quit"   , ("Quits the server"                 , handleQuit)), 
+     ("help"    , ("Print out the help message"                    , handleHelp))
+   , ("echo"    , ("Echo back the same string"                     , handleEcho))
+   , ("join"    , ("Join a channel/channels. Eg. !join #foo,#bar"  , handleJoin))
+   , ("uptime"  , ("Show the running time of the bot"              , handleUptime))
+  ]
+
+handleQuit n c l    =  write "QUIT" ":Exiting" >> liftIO exitSuccess
+
+handleUptime n c l  =  uptime >>= privmsg n c
+
+handleEcho          =  privmsg
+
+handleHelp n c l
+  | not (null . drop 1 $ splitOn " " l)
+  = case _c of
+    Just (message, _) -> privmsg n c $ command ++ " - " ++ message
+    Nothing           -> privmsg n c "Command not found"
+  where
+    _c = lookup command commands
+    command = head (splitOn " " l)
+
+handleHelp n c l
+  | null . drop 1 $ splitOn " " l
+  = mapM_ printhelp commands
+  where
+    printhelp (command, (help, _)) = privmsg n c $ command ++ " - " ++ help
+
+handleJoin n c l
+  = case splitOn " " l of
+    [chans] -> write "JOIN" chans
+    _ -> privmsg n c l
+  where
+    printhelp c = case lookup c commands of
+                  Just (help, _) -> privmsg n c $ c ++ " - " ++ help
+                  Nothing -> return ()
+
+privmsg :: String -> String -> String -> Net ()
+privmsg _ chan s
+  | "#" `isPrefixOf` chan
+  = write "PRIVMSG" (chan ++ " :" ++ s)
+privmsg nick _ s
+  = write "PRIVMSG" ((takeWhile (/= '!') nick) ++ " :" ++ s)
 
 write :: String -> String -> Net ()
 write s t = do
@@ -54,10 +96,10 @@ pretty td =
 hasURLs :: String -> Bool
 hasURLs s = "http://" `isInfixOf` s || "https://" `isInfixOf` s 
 
-lookupURLTitles :: String -> Net ()
-lookupURLTitles s = do
+lookupURLTitles :: String -> String -> String -> Net ()
+lookupURLTitles nick chan s = do
   titles <- liftIO $ mapM scrapeTitle urls
-  mapM_ privmsg $ catMaybes titles
+  mapM_ (privmsg nick chan) $ catMaybes titles
  where
     urls = filter isURL words
     words = splitOn " " s

@@ -7,13 +7,13 @@ import Control.Exception
 import Control.Monad (forever)
 import Control.Monad.Reader
 import Network
-import System.Exit
 import System.IO
 import System.Time
 import Text.Printf
 
 import Lib
 
+{-TODO - Yaml config file-}
 server = "irc.freenode.org"
 port = 6667
 chan = "#hircules"
@@ -59,39 +59,29 @@ listen h = forever $ do
     splitprivmsg s =
       (n, c, line)
       where
-        [n, _, c] = splitOn " " $ drop 1 $ takeWhile (/= ':') $ drop 1 s
+        [n, _, c, _] = splitOn " " $ takeWhile (/= ':') $ drop 1 s
         line = clean s
     ping x = "PING :" `isPrefixOf` x
     pong x = write "PONG" (':' : drop 6 x)
 
--- :AshyIsMe!~aaron@unaffiliated/ashyisme PRIVMSG #hircules :yo
--- :AshyIsMe!~aaron@unaffiliated/ashyisme PRIVMSG hircules :yo
+-- :nickname!~user@unaffiliated/nickname PRIVMSG #hircules :yo
+-- :nickname!~user@unaffiliated/nickname PRIVMSG hircules :yo
 
 isCommand :: String -> Bool
 isCommand = not . isPrefixOf [commandChar]
-
-commands =
-  [  ("quit"   , ("Quits the server"                 , handleQuit))
-   , ("uptime" , ("Show the running time of the bot" , handleUptime))
-   , ("id"     , ("Echo back the same string"        , handleId))
-  ]
-
-handleQuit n c l = write "QUIT" ":Exiting" >> liftIO exitSuccess
-handleUptime n c l = uptime >>= privmsg
-handleId n c l = privmsg l
 
 eval :: String -> String -> String -> Net ()
 eval nick chan line
   | [commandChar] `isPrefixOf` line
   = case lookup command commands of
       Just (docs, f) -> f nick chan args
-      Nothing -> privmsg "Command not found."
+      Nothing -> privmsg nick chan "Command not found."
   where
     command = takeWhile (/= ' ') $ drop 1 line
     args = drop 1 $ dropWhile (/= ' ') line
 
 eval nick chan line
   | hasURLs line
-  = lookupURLTitles line
+  = lookupURLTitles nick chan line
 
 eval _ _ _ = return ()
