@@ -1,5 +1,9 @@
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
+
 module Lib
     ( Bot (..),
+      HirculesConfig (..),
       Net,
       commands,
       hasURLs,
@@ -9,22 +13,47 @@ module Lib
       write
     ) where
 
-import Control.Arrow
-import Control.Exception
-import Control.Monad (forever)
-import Control.Monad.Reader
-import Data.List
-import Data.List.Split
-import Data.Maybe
-import Network
-import System.Exit
-import System.IO
-import System.Time
-import Text.HTML.Scalpel
-import Text.Printf
+import           Control.Arrow
+import           Control.Exception
+import           Control.Monad (forever)
+import           Control.Monad.Reader
+import           Data.List
+import           Data.List.Split
+import           Data.Maybe
+import           Data.Yaml
+import           Network
+import           System.Exit
+import           System.IO
+import           System.Time
+import           Text.Printf
+import qualified Data.Text as T
+import qualified Text.HTML.Scalpel as Sc
 
-data Bot = Bot { socket :: Handle, channell :: String, starttime :: ClockTime }
+{-TODO: Bot should have a HirculesConfig field instead of duplicated fields-}
+data Bot = Bot 
+  { socket :: Handle
+  , channel :: String
+  , comChar :: Char
+  , starttime :: ClockTime }
+
 type Net = ReaderT Bot IO
+
+data HirculesConfig = HirculesConfig 
+  { server :: T.Text
+  , port :: Integer
+  , nick :: T.Text
+  , chans :: T.Text
+  , commandChar :: Char
+  } deriving Show
+
+instance FromJSON HirculesConfig where
+  parseJSON (Object v) = HirculesConfig <$>
+                         v .: "server" <*>
+                         v .: "port" <*>
+                         v .: "nick" <*>
+                         v .: "chans" <*>
+                         v .: "commandChar"
+  parseJSON _ = mzero
 
 commands =
   [  -- ("quit"   , ("Quits the server"                 , handleQuit)), 
@@ -81,10 +110,10 @@ uptime :: Net String
 uptime = do
   now <- liftIO getClockTime
   zero <- asks starttime
-  return . pretty $ diffClockTimes now zero
+  return . prettyTime $ diffClockTimes now zero
 
-pretty :: TimeDiff -> String
-pretty td =
+prettyTime :: TimeDiff -> String
+prettyTime td =
   unwords $ map (uncurry (++) . first show) $ 
   if null diffs then [(0,"s")] else diffs
     where merge (tot,acc) (sec,typ) = let (sec',tot') = divMod tot sec
@@ -107,4 +136,4 @@ lookupURLTitles nick chan s = do
               "https://" `isPrefixOf` s
 
 scrapeTitle :: String -> IO (Maybe String)
-scrapeTitle u = scrapeURL u (text "title")
+scrapeTitle u = Sc.scrapeURL u (Sc.text ("title" :: String))

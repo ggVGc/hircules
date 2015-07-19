@@ -17,11 +17,14 @@ library
   hs-source-dirs:      src
   exposed-modules:     Lib
   build-depends:       base >= 4.7 && < 5
+                     , bytestring
                      , mtl
                      , network
                      , old-time
                      , scalpel
                      , split
+                     , text
+                     , yaml
   default-language:    Haskell2010
 
 executable hircules
@@ -29,11 +32,14 @@ executable hircules
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base
+                     , bytestring
                      , hircules
                      , mtl
                      , network
                      , old-time
                      , split
+                     , text
+                     , yaml
   default-language:    Haskell2010
 
 test-suite hircules-test
