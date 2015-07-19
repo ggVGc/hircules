@@ -33,6 +33,7 @@ executable hircules
                      , mtl
                      , network
                      , old-time
+                     , split
   default-language:    Haskell2010
 
 test-suite hircules-test
