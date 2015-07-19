@@ -69,7 +69,7 @@ privmsg _ chan s
   | "#" `isPrefixOf` chan
   = write "PRIVMSG" (chan ++ " :" ++ s)
 privmsg nick _ s
-  = write "PRIVMSG" ((takeWhile (/= '!') nick) ++ " :" ++ s)
+  = write "PRIVMSG" (takeWhile (/= '!') nick ++ " :" ++ s)
 
 write :: String -> String -> Net ()
 write s t = do
@@ -99,7 +99,7 @@ hasURLs s = "http://" `isInfixOf` s || "https://" `isInfixOf` s
 lookupURLTitles :: String -> String -> String -> Net ()
 lookupURLTitles nick chan s = do
   titles <- liftIO $ mapM scrapeTitle urls
-  mapM_ (privmsg nick chan) $ catMaybes titles
+  mapM_ (privmsg nick chan . unwords . lines) $ catMaybes titles
  where
     urls = filter isURL words
     words = splitOn " " s
