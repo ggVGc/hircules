@@ -5,6 +5,7 @@ module Main where
 
 
 import           Control.Arrow
+import           Control.Concurrent.Async
 import           Control.Exception
 import           Control.Monad (forever)
 import           Control.Monad.Reader
@@ -12,8 +13,10 @@ import           Data.List
 import           Data.List.Split
 import           Data.Yaml
 import           Network
+import           System.Directory
 import           System.IO
 import           System.Time
+import           System.Posix.Files
 import           Text.Printf
 import qualified Data.ByteString as BS
 import qualified Data.Text as T
@@ -21,6 +24,8 @@ import qualified Data.Text as T
 import Lib
 
 {-TODO - skinflutery: s/foo/bar-}
+
+fifoname = ".hircules-fifo"
 
 main :: IO ()
 main = do
@@ -52,24 +57,37 @@ run conf = do
   asks socket >>= listen
 
 listen :: Handle -> Net ()
-listen h = forever $ do
-  s <- init `fmap` liftIO (hGetLine h)
-  liftIO (putStrLn s)
-  if ping s 
-  then pong s 
-  else when (isprivmsg s) $
-            let (n, c, l) = splitprivmsg s
-            in eval n c l
- where
-    clean = drop 1 . dropWhile (/= ':') . drop 1
-    isprivmsg = isPrefixOf "PRIVMSG" . drop 1 . dropWhile (/= ' ') . drop 1 
-    splitprivmsg s =
-      (n, c, line)
-      where
-        [n, _, c, _] = splitOn " " $ takeWhile (/= ':') $ drop 1 s
-        line = clean s
-    ping x = "PING :" `isPrefixOf` x
-    pong x = write "PONG" (':' : drop 6 x)
+listen h = do
+  fileexists <- liftIO $ doesFileExist fifoname
+  when fileexists (liftIO $ removeFile fifoname)
+  fifo <- liftIO $ createNamedPipe fifoname accessModes
+  let processIRC = forever $ do
+        s <- init `fmap` liftIO (hGetLine h)
+        liftIO (putStrLn s)
+        if ping s 
+        then pong s 
+        else when (isprivmsg s) $
+                  let (n, c, l) = splitprivmsg s
+                  in eval n c l
+       where
+          clean = drop 1 . dropWhile (/= ':') . drop 1
+          isprivmsg = isPrefixOf "PRIVMSG" . drop 1 . dropWhile (/= ' ') . drop 1 
+          splitprivmsg s =
+            (n, c, line)
+            where
+              [n, _, c, _] = splitOn " " $ takeWhile (/= ':') $ drop 1 s
+              line = clean s
+          ping x = "PING :" `isPrefixOf` x
+          pong x = write "PONG" (':' : drop 6 x)
+
+      processFIFO = forever $ do
+        chan <- asks channel
+        s <- liftIO $ readFile fifoname
+        mapM_ (privmsg "" chan) $ lines s
+    in do 
+      bot <- ask
+      liftIO $ concurrently (runReaderT processIRC bot) (runReaderT processFIFO bot)
+      return ()
 
 -- :nickname!~user@unaffiliated/nickname PRIVMSG #hircules :yo
 -- :nickname!~user@unaffiliated/nickname PRIVMSG hircules :yo
