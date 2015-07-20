@@ -2,5 +2,6 @@
   port: 6667
   chans: "#hircules"
   nick: "hircules"
+  password: "PASSWORD GOES HERE"
   commandChar: '!'
 
