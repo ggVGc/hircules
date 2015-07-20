@@ -24,6 +24,7 @@ import qualified Data.Text as T
 import Lib
 
 {-TODO - skinflutery: s/foo/bar-}
+  {-- Just use a shell pipeline with gtimeout 2s and sed/perl-}
 
 fifoname = ".hircules-fifo"
 
@@ -51,8 +52,13 @@ connect conf = notify $ do
 
 run :: HirculesConfig -> Net ()
 run conf = do
+  privmsg "NickServ" "" $ ("GHOST " ++ 
+                            (T.unpack $ nick conf) ++ " " ++ 
+                            (T.unpack $ password conf))
   write "NICK" (T.unpack $ nick conf)
   write "USER" (T.unpack (nick conf) ++" 0 * :hircules bot")
+  privmsg "NickServ" "" $ ("IDENTIFY " ++ 
+                          (T.unpack $ password conf) ++ " ")
   write "JOIN" (T.unpack $ chans conf)
   asks socket >>= listen
 
@@ -86,7 +92,8 @@ listen h = do
         mapM_ (privmsg "" chan) $ lines s
     in do 
       bot <- ask
-      liftIO $ concurrently (runReaderT processIRC bot) (runReaderT processFIFO bot)
+      liftIO $ concurrently (runReaderT processIRC bot) 
+                            (runReaderT processFIFO bot)
       return ()
 
 -- :nickname!~user@unaffiliated/nickname PRIVMSG #hircules :yo

@@ -42,6 +42,7 @@ data HirculesConfig = HirculesConfig
   { server :: T.Text
   , port :: Integer
   , nick :: T.Text
+  , password :: T.Text -- Password for the nickname on the irc network
   , chans :: T.Text
   , commandChar :: Char
   } deriving Show
@@ -51,6 +52,7 @@ instance FromJSON HirculesConfig where
                          v .: "server" <*>
                          v .: "port" <*>
                          v .: "nick" <*>
+                         v .: "password" <*>
                          v .: "chans" <*>
                          v .: "commandChar"
   parseJSON _ = mzero
