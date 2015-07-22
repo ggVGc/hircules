@@ -30,7 +30,7 @@ import qualified Data.Text as T
 import qualified Text.HTML.Scalpel as Sc
 
 {-TODO: Bot should have a HirculesConfig field instead of duplicated fields-}
-data Bot = Bot 
+data Bot = Bot
   { socket :: Handle
   , channel :: String
   , comChar :: Char
@@ -38,7 +38,7 @@ data Bot = Bot
 
 type Net = ReaderT Bot IO
 
-data HirculesConfig = HirculesConfig 
+data HirculesConfig = HirculesConfig
   { server :: T.Text
   , port :: Integer
   , nick :: T.Text
@@ -58,7 +58,7 @@ instance FromJSON HirculesConfig where
   parseJSON _ = mzero
 
 commands =
-  [  -- ("quit"   , ("Quits the server"                 , handleQuit)), 
+  [  -- ("quit"   , ("Quits the server"                 , handleQuit)),
      ("help"    , ("Print out the help message"                    , handleHelp))
    , ("echo"    , ("Echo back the same string"                     , handleEcho))
    , ("join"    , ("Join a channel/channels. Eg. !join #foo,#bar"  , handleJoin))
@@ -116,7 +116,7 @@ uptime = do
 
 prettyTime :: TimeDiff -> String
 prettyTime td =
-  unwords $ map (uncurry (++) . first show) $ 
+  unwords $ map (uncurry (++) . first show) $
   if null diffs then [(0,"s")] else diffs
     where merge (tot,acc) (sec,typ) = let (sec',tot') = divMod tot sec
                                       in (tot',(sec',typ):acc)
@@ -125,7 +125,7 @@ prettyTime td =
                   foldl' merge (tdSec td,[]) metrics
 
 hasURLs :: String -> Bool
-hasURLs s = "http://" `isInfixOf` s || "https://" `isInfixOf` s 
+hasURLs s = "http://" `isInfixOf` s || "https://" `isInfixOf` s
 
 lookupURLTitles :: String -> String -> String -> Net ()
 lookupURLTitles nick chan s = do

@@ -52,12 +52,12 @@ connect conf = notify $ do
 
 run :: HirculesConfig -> Net ()
 run conf = do
-  privmsg "NickServ" "" $ ("GHOST " ++ 
-                            (T.unpack $ nick conf) ++ " " ++ 
+  privmsg "NickServ" "" $ ("GHOST " ++
+                            (T.unpack $ nick conf) ++ " " ++
                             (T.unpack $ password conf))
   write "NICK" (T.unpack $ nick conf)
   write "USER" (T.unpack (nick conf) ++" 0 * :hircules bot")
-  privmsg "NickServ" "" $ ("IDENTIFY " ++ 
+  privmsg "NickServ" "" $ ("IDENTIFY " ++
                           (T.unpack $ password conf) ++ " ")
   write "JOIN" (T.unpack $ chans conf)
   asks socket >>= listen
@@ -70,14 +70,14 @@ listen h = do
   let processIRC = forever $ do
         s <- init `fmap` liftIO (hGetLine h)
         liftIO (putStrLn s)
-        if ping s 
-        then pong s 
+        if ping s
+        then pong s
         else when (isprivmsg s) $
                   let (n, c, l) = splitprivmsg s
                   in eval n c l
        where
           clean = drop 1 . dropWhile (/= ':') . drop 1
-          isprivmsg = isPrefixOf "PRIVMSG" . drop 1 . dropWhile (/= ' ') . drop 1 
+          isprivmsg = isPrefixOf "PRIVMSG" . drop 1 . dropWhile (/= ' ') . drop 1
           splitprivmsg s =
             (n, c, line)
             where
@@ -90,9 +90,9 @@ listen h = do
         chan <- asks channel
         s <- liftIO $ readFile fifoname
         mapM_ (privmsg "" chan) $ lines s
-    in do 
+    in do
       bot <- ask
-      liftIO $ concurrently (runReaderT processIRC bot) 
+      liftIO $ concurrently (runReaderT processIRC bot)
                             (runReaderT processFIFO bot)
       return ()
 
